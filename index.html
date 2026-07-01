@@ -47,7 +47,8 @@
   /* FAB press */
   .fab-btn:active { transform: scale(0.92); }
   .press:active { transform: scale(0.96); }
-  .press { transition: transform .12s ease; }
+  .press { transition: transform .12s ease; touch-action: manipulation; user-select: none; }
+  .cat-option { touch-action: manipulation; pointer-events: auto; min-height: 3rem; }
 
   /* Nav item */
   .nav-item .nav-dot { transition: all .2s ease; }
