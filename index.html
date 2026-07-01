@@ -147,11 +147,11 @@
 
       <!-- Quick actions -->
       <div class="relative flex gap-2.5 mt-5">
-        <button id="btn-quick-add-balance" class="press flex-1 bg-white text-primary-dark font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5 shadow-soft">
+        <button type="button" id="btn-quick-add-balance" class="press flex-1 bg-white text-primary-dark font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5 shadow-soft">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Balance
         </button>
-        <button id="btn-quick-add-expense" class="press flex-1 bg-white/15 text-white font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5 border border-white/25">
+        <button type="button" id="btn-quick-add-expense" class="press flex-1 bg-white/15 text-white font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5 border border-white/25">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4"/></svg>
           Log Expense
         </button>
@@ -308,6 +308,15 @@
       <p class="font-display font-semibold text-sm mb-3">Data</p>
       <button type="button" id="btn-export-csv-2" class="press w-full mb-2.5 bg-primary-light text-primary-dark font-display font-semibold text-sm py-3 rounded-xl">Export all history (CSV)</button>
       <button type="button" id="btn-reset-month" class="press w-full mb-2.5 bg-warn-light text-warn font-display font-semibold text-sm py-3 rounded-xl">Reset selected month's data</button>
+      <div id="reset-month-panel" class="hidden bg-warn-light/10 rounded-2xl p-4 mb-3 border border-warn-light">
+        <label for="reset-month-picker" class="block text-xs font-semibold text-ink-muted mb-2">Choose month to erase</label>
+        <input id="reset-month-picker" type="month" class="w-full bg-bg rounded-xl px-4 py-3 text-sm text-ink mb-3" />
+        <div class="flex gap-2.5">
+          <button type="button" id="btn-reset-month-confirm" class="press flex-1 bg-warn-light text-warn font-display font-semibold text-sm py-3 rounded-xl">Erase month</button>
+          <button type="button" id="btn-reset-month-cancel" class="press flex-1 bg-surface text-ink-muted font-display font-semibold text-sm py-3 rounded-xl">Cancel</button>
+        </div>
+        <p class="text-xs text-ink-faint mt-3">This removes all transactions for the selected month and adjusts your wallet balance accordingly.</p>
+      </div>
       <button type="button" id="btn-reset-all" class="press w-full bg-expense-light text-expense font-display font-semibold text-sm py-3 rounded-xl">Erase all data</button>
     </div>
 
@@ -356,7 +365,7 @@
 <div id="sheet-fab" class="modal-panel fixed left-0 right-0 bottom-0 z-50 translate-y-full">
   <div class="max-w-md mx-auto bg-surface rounded-t-3xl p-5 pb-8" style="padding-bottom: calc(env(safe-area-inset-bottom) + 20px);">
     <div class="w-10 h-1.5 bg-line rounded-full mx-auto mb-5"></div>
-    <button id="sheet-add-balance" class="press w-full flex items-center gap-3 p-3.5 rounded-2xl hover:bg-primary-light mb-2">
+    <button type="button" id="sheet-add-balance" class="press w-full flex items-center gap-3 p-3.5 rounded-2xl hover:bg-primary-light mb-2">
       <div class="w-10 h-10 rounded-xl bg-primary-light flex items-center justify-center shrink-0">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E7C66" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
       </div>
@@ -365,7 +374,7 @@
         <p class="text-xs text-ink-muted">Top up your wallet</p>
       </div>
     </button>
-    <button id="sheet-add-expense" class="press w-full flex items-center gap-3 p-3.5 rounded-2xl">
+    <button type="button" id="sheet-add-expense" class="press w-full flex items-center gap-3 p-3.5 rounded-2xl">
       <div class="w-10 h-10 rounded-xl bg-expense-light flex items-center justify-center shrink-0">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4573B" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4"/></svg>
       </div>
@@ -1117,23 +1126,48 @@
      SETTINGS: RESET
   ============================================================ */
   document.getElementById("btn-reset-month").addEventListener("click", () => {
+    const panel = document.getElementById("reset-month-panel");
+    const picker = document.getElementById("reset-month-picker");
+    picker.value = reportMonth || currentMonthKey();
+    panel.classList.toggle("hidden");
+    if (!panel.classList.contains("hidden")) {
+      picker.focus();
+    }
+  });
+
+  document.getElementById("btn-reset-month-cancel").addEventListener("click", () => {
+    document.getElementById("reset-month-panel").classList.add("hidden");
+  });
+
+  document.getElementById("btn-reset-month-confirm").addEventListener("click", () => {
+    const monthKey = document.getElementById("reset-month-picker").value;
+    if (!monthKey) {
+      showToast("Choose a month first", "error");
+      return;
+    }
     confirmAction(
-      `Reset ${fmtMonthLabel(reportMonth)}?`,
-      "This deletes every transaction logged in this month and adjusts your wallet balance to undo their effect. This cannot be undone.",
+      `Reset ${fmtMonthLabel(monthKey)}?`,
+      `This deletes every transaction logged in ${fmtMonthLabel(monthKey)} and adjusts your wallet balance to undo their effect. This cannot be undone.`,
       () => {
         const keep = [];
         let balanceAdjust = 0;
         state.transactions.forEach(t => {
-          if (monthKeyOf(t.date) === reportMonth) {
+          if (monthKeyOf(t.date) === monthKey) {
             balanceAdjust += t.type === "income" ? -t.amount : t.amount;
           } else {
             keep.push(t);
           }
         });
+        if (keep.length === state.transactions.length) {
+          showToast(`No data found for ${fmtMonthLabel(monthKey)}`, "error");
+          document.getElementById("reset-month-panel").classList.add("hidden");
+          return;
+        }
         state.transactions = keep;
         state.balance = Math.max(0, Math.round((state.balance + balanceAdjust) * 100) / 100);
         saveState();
-        showToast(`${fmtMonthLabel(reportMonth)} data reset`);
+        showToast(`${fmtMonthLabel(monthKey)} data reset`);
+        document.getElementById("reset-month-panel").classList.add("hidden");
         refreshAll();
       }
     );
