@@ -47,7 +47,8 @@
   /* FAB press */
   .fab-btn:active { transform: scale(0.92); }
   .press:active { transform: scale(0.96); }
-  .press { transition: transform .12s ease; touch-action: manipulation; user-select: none; }
+  .press { transition: transform .12s ease; touch-action: manipulation; user-select: none; cursor: pointer; }
+  .modal-panel, .modal-backdrop { touch-action: manipulation; }
   .cat-option { touch-action: manipulation; pointer-events: auto; min-height: 3rem; }
   .cat-option-list { touch-action: manipulation; pointer-events: auto; }
 
@@ -669,10 +670,25 @@
   }
 
   // FAB sheet wiring
+  const openSheetAction = (fn) => {
+    if (openSheetAction.locked) return;
+    openSheetAction.locked = true;
+    closeSheet("sheet-fab", "sheet-backdrop");
+    setTimeout(() => {
+      fn();
+      setTimeout(() => { openSheetAction.locked = false; }, 300);
+    }, 260);
+  };
+
   document.getElementById("btn-fab").addEventListener("click", () => openSheet("sheet-fab", "sheet-backdrop"));
   document.getElementById("sheet-backdrop").addEventListener("click", () => closeSheet("sheet-fab", "sheet-backdrop"));
-  document.getElementById("sheet-add-balance").addEventListener("click", () => { closeSheet("sheet-fab", "sheet-backdrop"); setTimeout(openBalanceModal, 260); });
-  document.getElementById("sheet-add-expense").addEventListener("click", () => { closeSheet("sheet-fab", "sheet-backdrop"); setTimeout(openExpenseModal, 260); });
+
+  const sheetAddBalance = document.getElementById("sheet-add-balance");
+  const sheetAddExpense = document.getElementById("sheet-add-expense");
+  sheetAddBalance.addEventListener("click", () => openSheetAction(openBalanceModal));
+  sheetAddBalance.addEventListener("pointerup", (event) => { event.preventDefault(); event.stopPropagation(); openSheetAction(openBalanceModal); });
+  sheetAddExpense.addEventListener("click", () => openSheetAction(openExpenseModal));
+  sheetAddExpense.addEventListener("pointerup", (event) => { event.preventDefault(); event.stopPropagation(); openSheetAction(openExpenseModal); });
 
   document.getElementById("btn-quick-add-balance").addEventListener("click", openBalanceModal);
   document.getElementById("btn-quick-add-expense").addEventListener("click", openExpenseModal);
@@ -681,24 +697,46 @@
   const expenseCatTrigger = document.getElementById("expense-cat-trigger");
   const expenseCatList = document.getElementById("expense-cat-list");
   const expenseCatLabel = document.getElementById("expense-cat-label");
+  const expenseCategoryGroup = document.getElementById("expense-category-group");
 
-  expenseCatTrigger.addEventListener("click", () => {
+  const toggleExpenseCatList = () => {
     expenseCatList.classList.toggle("hidden");
+    expenseCatTrigger.setAttribute("aria-expanded", expenseCatList.classList.contains("hidden") ? "false" : "true");
+  };
+
+  const selectExpenseCategory = (btn) => {
+    activeExpenseCategory = btn.dataset.cat;
+    expenseCatLabel.textContent = btn.textContent;
+    document.querySelectorAll(".cat-option-list").forEach(b => {
+      b.classList.remove("border-primary", "bg-primary-light", "text-primary-dark");
+      b.classList.add("border-line", "bg-bg", "text-ink-muted");
+    });
+    btn.classList.remove("border-line", "bg-bg", "text-ink-muted");
+    btn.classList.add("border-primary", "bg-primary-light", "text-primary-dark");
+    expenseCatList.classList.add("hidden");
+    expenseCatTrigger.setAttribute("aria-expanded", "false");
+    document.getElementById("err-expense-cat").classList.add("hidden");
+  };
+
+  expenseCatTrigger.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleExpenseCatList();
   });
 
   document.querySelectorAll(".cat-option-list").forEach(btn => {
-    btn.addEventListener("click", () => {
-      activeExpenseCategory = btn.dataset.cat;
-      expenseCatLabel.textContent = btn.textContent;
-      document.querySelectorAll(".cat-option-list").forEach(b => {
-        b.classList.remove("border-primary", "bg-primary-light", "text-primary-dark");
-        b.classList.add("border-line", "bg-bg", "text-ink-muted");
-      });
-      btn.classList.remove("border-line", "bg-bg", "text-ink-muted");
-      btn.classList.add("border-primary", "bg-primary-light", "text-primary-dark");
-      expenseCatList.classList.add("hidden");
-      document.getElementById("err-expense-cat").classList.add("hidden");
+    btn.addEventListener("pointerup", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      selectExpenseCategory(btn);
     });
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    if (!expenseCategoryGroup.contains(event.target)) {
+      expenseCatList.classList.add("hidden");
+      expenseCatTrigger.setAttribute("aria-expanded", "false");
+    }
   });
 
   /* ---------- Balance modal ---------- */
@@ -751,6 +789,7 @@
     activeExpenseCategory = null;
     expenseCatLabel.textContent = "Choose category";
     expenseCatList.classList.add("hidden");
+    expenseCatTrigger.setAttribute("aria-expanded", "false");
     document.querySelectorAll(".cat-option-list").forEach(b => {
       b.classList.remove("border-primary", "bg-primary-light", "text-primary-dark");
       b.classList.add("border-line", "bg-bg", "text-ink-muted");
